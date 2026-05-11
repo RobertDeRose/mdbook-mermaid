@@ -46,8 +46,8 @@ pre.mermaid:hover .mermaid-expand-button,
 }
 
 .mermaid-expand-button svg {
-    width: 14px;
-    height: 14px;
+    width: 16px;
+    height: 16px;
 }
 
 /* Modal overlay */
@@ -134,4 +134,9 @@ pre.mermaid:hover .mermaid-expand-button,
     width: 100%;
     height: auto;
     max-width: none;
+}
+
+.mermaid-modal__svg-wrapper {
+    display: inline-block;
+    min-width: 100%;
 }

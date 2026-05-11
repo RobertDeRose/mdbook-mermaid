@@ -5,9 +5,10 @@
 (() => {
     const darkThemes = ['ayu', 'navy', 'coal'];
     const mermaidModalId = 'mermaid-diagram-modal';
-    const maximizeIcon = `
-        <svg viewBox="0 0 448 512" aria-hidden="true" focusable="false">
-            <path fill="currentColor" d="M168 32L24 32C10.7 32 0 42.7 0 56L0 200c0 9.7 5.8 18.5 14.8 22.2S34.1 223.8 41 217l40-40 79 79-79 79-40-40c-6.9-6.9-17.2-8.9-26.2-5.2S0 302.3 0 312L0 456c0 13.3 10.7 24 24 24l144 0c9.7 0 18.5-5.8 22.2-14.8s1.7-19.3-5.2-26.2l-40-40 79-79 79 79-40 40c-6.9 6.9-8.9 17.2-5.2 26.2S270.3 480 280 480l144 0c13.3 0 24-10.7 24-24l0-144c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2l-40 40-79-79 79-79 40 40c6.9 6.9 17.2 8.9 26.2 5.2S448 209.7 448 200l0-144c0-13.3-10.7-24-24-24L280 32c-9.7 0-18.5 5.8-22.2 14.8S256.2 66.1 263 73l40 40-79 79-79-79 40-40c6.9-6.9 8.9-17.2 5.2-26.2S177.7 32 168 32z"/>
+    const expandIcon = `
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>
         </svg>
     `;
     const closeIcon = `
@@ -16,10 +17,17 @@
         </svg>
     `;
 
+    const makeCursorSvg = (plus) => {
+        const sign = plus
+            ? `<line x1='20' y1='13' x2='20' y2='27' stroke-width='3'/><line x1='13' y1='20' x2='27' y2='20' stroke-width='3'/>`
+            : `<line x1='13' y1='20' x2='27' y2='20' stroke-width='3'/>`;
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round'><circle cx='20' cy='20' r='13' stroke-width='3'/><line x1='30' y1='30' x2='42' y2='42' stroke-width='3'/>${sign}</svg>`;
+        return `url("data:image/svg+xml,${svg}") 20 20, auto`;
+    };
+    const zoomInCursor = makeCursorSvg(true);
+    const zoomOutCursor = makeCursorSvg(false);
+
     // Determine whether the current theme is light or dark.
-    // The HTML element carries the resolved theme name as a class (e.g. "navy", "light").
-    // For the auto/default_theme case, mdbook resolves it to the actual theme name before
-    // setting the class, so we only need to check against the known dark theme names.
     const classList = document.getElementsByTagName('html')[0].classList;
 
     let lastThemeWasLight = true;
@@ -36,6 +44,24 @@
     // --- Expand / modal functionality ---
 
     let modal = null;
+    let zoomLevel = 1;
+    let baseWidth = 0;
+    let baseHeight = 0;
+    const ZOOM_STEP = 0.25;
+    const ZOOM_MIN = 0.5;
+    const ZOOM_MAX = 5;
+
+    const resetZoom = () => {
+        if (!modal) return;
+        zoomLevel = 1;
+        const content = modal.querySelector('.mermaid-modal__content');
+        const wrapper = content?.querySelector('.mermaid-modal__svg-wrapper');
+        if (!wrapper || !baseWidth) return;
+        wrapper.style.width = baseWidth + 'px';
+        wrapper.style.height = baseHeight + 'px';
+        content.scrollLeft = 0;
+        content.scrollTop = 0;
+    };
 
     const closeMermaidModal = () => {
         if (!modal) return;
@@ -51,18 +77,33 @@
         const sourceSvg = sourcePre.querySelector('svg');
         if (!sourceSvg) return;
 
+        zoomLevel = 1;
         content.innerHTML = '';
+        content.scrollTop = 0;
+        content.scrollLeft = 0;
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'mermaid-modal__svg-wrapper';
         const clone = sourceSvg.cloneNode(true);
         clone.style.width = '100%';
         clone.style.height = 'auto';
         clone.style.maxWidth = 'none';
-        content.appendChild(clone);
+        wrapper.appendChild(clone);
+        content.appendChild(wrapper);
+
+        content.style.cursor = zoomInCursor;
 
         const heading = sourcePre.previousElementSibling;
         title.textContent = heading?.textContent?.trim() || 'Diagram';
 
         modal.hidden = false;
         document.body.classList.add('mermaid-modal-open');
+
+        // Capture intrinsic dimensions after layout, before any zoom
+        requestAnimationFrame(() => {
+            baseWidth = clone.getBoundingClientRect().width;
+            baseHeight = clone.getBoundingClientRect().height;
+        });
     };
 
     const createMermaidModal = () => {
@@ -92,16 +133,70 @@
             }
         });
 
+        const content = el.querySelector('.mermaid-modal__content');
+        content.addEventListener('click', (event) => {
+            const wrapper = content.querySelector('.mermaid-modal__svg-wrapper');
+            if (!wrapper || !baseWidth) return;
+
+            // Click position in viewport-relative coords
+            const rect = content.getBoundingClientRect();
+            const viewX = event.clientX - rect.left;
+            const viewY = event.clientY - rect.top;
+
+            // Click position in unscaled SVG coords
+            const svgX = (content.scrollLeft + viewX) / zoomLevel;
+            const svgY = (content.scrollTop + viewY) / zoomLevel;
+
+            // Update zoom
+            if (event.shiftKey) {
+                zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP);
+            } else {
+                zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
+            }
+
+            // Apply zoom by resizing the wrapper. The SVG inside has
+            // width:100% so it scales naturally — no CSS transform needed.
+            wrapper.style.width = (baseWidth * zoomLevel) + 'px';
+            wrapper.style.height = (baseHeight * zoomLevel) + 'px';
+
+            // Force synchronous reflow so the scroll container knows its
+            // new scrollable extents before we set scroll position.
+            void content.scrollWidth;
+
+            content.scrollLeft = svgX * zoomLevel - rect.width / 2;
+            content.scrollTop = svgY * zoomLevel - rect.height / 2;
+        });
+
         document.body.appendChild(el);
         return el;
     };
 
     document.addEventListener('keydown', (event) => {
-        if (event.key === 'Escape') closeMermaidModal();
+        if (!modal || modal.hidden) return;
+        if (event.key === 'Escape') {
+            if (Math.abs(zoomLevel - 1) > 0.01) {
+                resetZoom();
+                event.preventDefault();
+            } else {
+                closeMermaidModal();
+            }
+            return;
+        }
+        if (event.key === 'Shift') {
+            const content = modal.querySelector('.mermaid-modal__content');
+            if (content) content.style.cursor = zoomOutCursor;
+        }
+    });
+
+    document.addEventListener('keyup', (event) => {
+        if (!modal || modal.hidden) return;
+        if (event.key === 'Shift') {
+            const content = modal.querySelector('.mermaid-modal__content');
+            if (content) content.style.cursor = zoomInCursor;
+        }
     });
 
     // Add expand buttons to rendered mermaid diagrams.
-    // Mermaid renders asynchronously after startOnLoad, so we wait for SVGs to appear.
     const enhanceMermaidDiagrams = () => {
         for (const diagram of document.querySelectorAll('pre.mermaid')) {
             if (!diagram.querySelector('svg')) continue;
@@ -111,7 +206,7 @@
             expandButton.type = 'button';
             expandButton.className = 'mermaid-expand-button';
             expandButton.setAttribute('aria-label', 'Expand diagram');
-            expandButton.innerHTML = maximizeIcon;
+            expandButton.innerHTML = expandIcon;
             expandButton.addEventListener('click', (event) => {
                 event.stopPropagation();
                 openMermaidModal(diagram);
@@ -121,8 +216,6 @@
         }
     };
 
-    // Add expand buttons once mermaid has rendered SVGs into pre.mermaid elements.
-    // Use a MutationObserver to handle diagrams that render asynchronously.
     const enhance = () => enhanceMermaidDiagrams();
     const observer = new MutationObserver(enhance);
 
@@ -136,10 +229,7 @@
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    // Simplest way to make mermaid re-render the diagrams in the new theme is via refreshing the page.
-    // Only reload when the theme actually changes between light and dark categories.
-    // For the "Auto" button (id="mdbook-theme-default_theme"), we resolve via prefers-color-scheme.
-
+    // Reload page on theme change between light/dark to re-render mermaid diagrams.
     const isLightTheme = (themeId) => {
         if (themeId === 'default_theme') {
             return !window.matchMedia('(prefers-color-scheme: dark)').matches;
