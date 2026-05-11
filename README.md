@@ -24,6 +24,10 @@ into this:
 in your book.
 (Graph provided by [Mermaid Live Editor](https://mermaidjs.github.io/mermaid-live-editor/#/view/eyJjb2RlIjoiZ3JhcGggVEQ7XG4gICAgQS0tPkI7XG4gICAgQS0tPkM7XG4gICAgQi0tPkQ7XG4gICAgQy0tPkQ7IiwibWVybWFpZCI6eyJ0aGVtZSI6ImRlZmF1bHQifX0))
 
+Each diagram includes an expand icon in the upper-right corner (visible on hover) that opens the diagram in a
+full-viewport modal for better readability. The modal can be closed by clicking the X button, clicking the backdrop, or
+pressing Escape.
+
 ## Installation
 
 ### From source
@@ -67,11 +71,12 @@ command = "mdbook-mermaid"
 
 [output.html]
 additional-js = ["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["mermaid-modal.css"]
 ```
 
 It will skip any unnecessary changes and detect if `mdbook-mermaid` was already configured.
 
-Additionally it copies the files `mermaid.min.js` and  `mermaid-init.js` into your book's directory.
+Additionally it copies the files `mermaid.min.js`, `mermaid-init.js`, and `mermaid-modal.css` into your book's directory.
 You find these files in the [`src/bin/assets`](src/bin/assets) directory.
 You can modify `mermaid-init.js` to configure Mermaid, see the [Mermaid documentation] for all options.
 

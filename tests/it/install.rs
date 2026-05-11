@@ -37,7 +37,11 @@ macro_rules! test_install {
         );
         assert!(
             tmp.path().join("mermaid-init.js").exists(),
-            "Failed to copy mermaid.min.js"
+            "Failed to copy mermaid-init.js"
+        );
+        assert!(
+            tmp.path().join("mermaid-modal.css").exists(),
+            "Failed to copy mermaid-modal.css"
         );
     };
 }

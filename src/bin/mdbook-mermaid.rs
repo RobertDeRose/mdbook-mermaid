@@ -13,9 +13,11 @@ use std::{
 
 const MERMAID_JS: &[u8] = include_bytes!("assets/mermaid.min.js");
 const MERMAID_INIT_JS: &[u8] = include_bytes!("assets/mermaid-init.js");
+const MERMAID_MODAL_CSS: &[u8] = include_bytes!("assets/mermaid-modal.css");
 const MERMAID_FILES: &[(&str, &[u8])] = &[
     ("mermaid.min.js", MERMAID_JS),
     ("mermaid-init.js", MERMAID_INIT_JS),
+    ("mermaid-modal.css", MERMAID_MODAL_CSS),
 ];
 
 pub fn make_app() -> Command {
@@ -178,10 +180,24 @@ fn add_additional_files(doc: &mut Document) -> bool {
         log::debug!("'{}' already in 'additional-js'. Skipping", file)
     } else {
         if !printed {
+            printed = true;
             log::info!("Adding additional files to configuration");
         }
         log::debug!("Adding '{}' to 'additional-js'", file);
         insert_additional(doc, "js", file);
+        changed = true;
+    }
+
+    let file = "mermaid-modal.css";
+    let additional_css = additional(doc, "css");
+    if has_file(&additional_css, file) {
+        log::debug!("'{}' already in 'additional-css'. Skipping", file)
+    } else {
+        if !printed {
+            log::info!("Adding additional files to configuration");
+        }
+        log::debug!("Adding '{}' to 'additional-css'", file);
+        insert_additional(doc, "css", file);
         changed = true;
     }
 

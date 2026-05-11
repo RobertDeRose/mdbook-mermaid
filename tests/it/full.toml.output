@@ -7,3 +7,4 @@ renderer = ["html"]
 
 [output.html]
 additional-js =["mermaid.min.js", "mermaid-init.js"]
+additional-css = ["mermaid-modal.css"]
