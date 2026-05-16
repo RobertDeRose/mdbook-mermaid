@@ -1,0 +1,14 @@
+[settings]
+experimental = true
+env_shell_expand = true
+
+[tools]
+hk = { version = "1.41", arch = "aarch64" }
+pkl = "latest"
+rust = "stable"
+
+[env]
+HK_MISE = 1
+
+[hooks]
+postinstall = "command -v hk >/dev/null && hk install --mise || true"

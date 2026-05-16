@@ -111,7 +111,7 @@ or manually replace the file.
 
 ## License
 
-MPL. See [LICENSE](LICENSE).  
+MPL. See [LICENSE](LICENSE).
 Copyright (c) 2018-2024 Jan-Erik Rediger <janerik@fnordig.de>
 
 Mermaid is [MIT licensed](https://github.com/knsv/mermaid/blob/master/LICENSE).
