@@ -26,6 +26,7 @@
     };
     const zoomInCursor = makeCursorSvg(true);
     const zoomOutCursor = makeCursorSvg(false);
+    const resetCursor = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round'><path d='M34 14a14 14 0 1 0 2 18' stroke-width='3'/><path d='M34 14h-10M34 14v10' stroke-width='3'/></svg>") 20 20, auto`;
 
     // Determine whether the current theme is light or dark.
     const classList = document.getElementsByTagName('html')[0].classList;
@@ -63,6 +64,29 @@
         content.scrollTop = 0;
     };
 
+    const diagramTitle = (sourcePre) => {
+        const parent = sourcePre.parentElement;
+        // Prefer the HTML5 figure caption pattern for titled diagrams:
+        // <figure><pre class="mermaid">...</pre><figcaption>Title</figcaption></figure>
+        const figureCaption = parent?.tagName === 'FIGURE'
+            ? parent.querySelector(':scope > figcaption')
+            : null;
+        if (figureCaption?.textContent?.trim()) {
+            return figureCaption.textContent.trim();
+        }
+
+        const previous = sourcePre.previousElementSibling;
+        if (previous?.matches('figcaption, caption')) {
+            return previous.textContent.trim();
+        }
+
+        if (previous?.matches('h1, h2, h3, h4, h5, h6')) {
+            return previous.textContent.trim();
+        }
+
+        return '';
+    };
+
     const closeMermaidModal = () => {
         if (!modal) return;
         modal.hidden = true;
@@ -93,8 +117,7 @@
 
         content.style.cursor = zoomInCursor;
 
-        const heading = sourcePre.previousElementSibling;
-        title.textContent = heading?.textContent?.trim() || 'Diagram';
+        title.textContent = diagramTitle(sourcePre);
 
         modal.hidden = false;
         document.body.classList.add('mermaid-modal-open');
@@ -115,11 +138,18 @@
             <div class="mermaid-modal__backdrop"></div>
             <div class="mermaid-modal__panel" role="dialog" aria-modal="true" aria-labelledby="${mermaidModalId}-title">
                 <div class="mermaid-modal__header">
-                    <strong id="${mermaidModalId}-title" class="mermaid-modal__title">Diagram</strong>
+                    <strong id="${mermaidModalId}-title" class="mermaid-modal__title"></strong>
                     <button type="button" class="mermaid-modal__close" aria-label="Close expanded diagram">${closeIcon}</button>
                 </div>
                 <div class="mermaid-modal__content"></div>
             </div>
+            <aside class="mermaid-modal__help" aria-label="Diagram zoom controls">
+                <strong>Zoom controls</strong>
+                <span><kbd>Click</kbd>&nbsp; zoom in</span>
+                <span><kbd>Shift</kbd> + <kbd>Click</kbd>&nbsp; zoom out</span>
+                <span><kbd>Alt</kbd> + <kbd>Click</kbd>&nbsp; reset</span>
+                <span><kbd>Esc</kbd>&nbsp; reset, then close</span>
+            </aside>
         `;
 
         el.addEventListener('click', (event) => {
@@ -147,8 +177,10 @@
             const svgX = (content.scrollLeft + viewX) / zoomLevel;
             const svgY = (content.scrollTop + viewY) / zoomLevel;
 
-            // Update zoom
-            if (event.shiftKey) {
+            // Update zoom. Alt/Option+click avoids macOS Control-click context menus.
+            if (event.altKey) {
+                zoomLevel = 1;
+            } else if (event.shiftKey) {
                 zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP);
             } else {
                 zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
@@ -185,12 +217,18 @@
         if (event.key === 'Shift') {
             const content = modal.querySelector('.mermaid-modal__content');
             if (content) content.style.cursor = zoomOutCursor;
+        } else if (event.key === 'Alt') {
+            const content = modal.querySelector('.mermaid-modal__content');
+            if (content) content.style.cursor = resetCursor;
         }
     });
 
     document.addEventListener('keyup', (event) => {
         if (!modal || modal.hidden) return;
         if (event.key === 'Shift') {
+            const content = modal.querySelector('.mermaid-modal__content');
+            if (content) content.style.cursor = zoomInCursor;
+        } else if (event.key === 'Alt') {
             const content = modal.querySelector('.mermaid-modal__content');
             if (content) content.style.cursor = zoomInCursor;
         }

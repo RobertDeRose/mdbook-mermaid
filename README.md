@@ -25,8 +25,46 @@ in your book.
 (Graph provided by [Mermaid Live Editor](https://mermaidjs.github.io/mermaid-live-editor/#/view/eyJjb2RlIjoiZ3JhcGggVEQ7XG4gICAgQS0tPkI7XG4gICAgQS0tPkM7XG4gICAgQi0tPkQ7XG4gICAgQy0tPkQ7IiwibWVybWFpZCI6eyJ0aGVtZSI6ImRlZmF1bHQifX0))
 
 Each diagram includes an expand icon in the upper-right corner (visible on hover) that opens the diagram in a
-full-viewport modal for better readability. The modal can be closed by clicking the X button, clicking the backdrop, or
-pressing Escape.
+full-viewport modal for better readability.
+
+The modal supports:
+
+- Closing with the X icon button, backdrop click, or Escape.
+- Click-to-zoom inside the diagram.
+- Shift-click or Shift-hold to zoom out.
+- Alt-click, or Option-click on macOS, to reset zoom.
+- Escape to reset zoom first, then close when already at the default zoom.
+
+The same controls are shown in a floating help card inside the modal so users do not have to discover the gestures by
+trial and error.
+
+The modal title is intentionally conservative. It uses the first available value from:
+
+1. A direct `<figcaption>` child when the diagram is wrapped in a `<figure>`.
+2. An immediately preceding `<figcaption>` or `<caption>` element.
+3. An immediately preceding heading (`<h1>` through `<h6>`).
+
+If none of those are present, the modal title is left blank instead of guessing from arbitrary nearby content.
+For diagrams that need an explicit title independent of the section heading, prefer standard HTML figure markup:
+
+```html
+<figure>
+<pre class="mermaid">
+flowchart TD
+    A --> B
+</pre>
+<figcaption>Request lifecycle</figcaption>
+</figure>
+```
+
+Markdown Mermaid code fences remain supported for the common case:
+
+~~~markdown
+```mermaid
+flowchart TD
+    A --> B
+```
+~~~
 
 ## Installation
 
