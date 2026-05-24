@@ -26,7 +26,7 @@
     };
     const zoomInCursor = makeCursorSvg(true);
     const zoomOutCursor = makeCursorSvg(false);
-    const resetCursor = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round'><path d='M34 14a14 14 0 1 0 2 18' stroke-width='3'/><path d='M34 14h-10M34 14v10' stroke-width='3'/></svg>") 20 20, auto`;
+    const resetCursor = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round'><g transform='translate(6 6) scale(1.5)'><path d='M3 12a9 9 0 1 0 3-6.7L3 8' stroke-width='2'/><path d='M3 3v5h5' stroke-width='2'/></g></svg>") 20 20, auto`;
 
     // Determine whether the current theme is light or dark.
     const classList = document.getElementsByTagName('html')[0].classList;
@@ -109,7 +109,6 @@
         const wrapper = document.createElement('div');
         wrapper.className = 'mermaid-modal__svg-wrapper';
         const clone = sourceSvg.cloneNode(true);
-        clone.style.width = '100%';
         clone.style.height = 'auto';
         clone.style.maxWidth = 'none';
         wrapper.appendChild(clone);
@@ -122,10 +121,23 @@
         modal.hidden = false;
         document.body.classList.add('mermaid-modal-open');
 
-        // Capture intrinsic dimensions after layout, before any zoom
+        // Fit the original SVG into the actual scroll viewport so the initial
+        // modal state is fully visible and zoom-out can shrink the diagram.
         requestAnimationFrame(() => {
-            baseWidth = clone.getBoundingClientRect().width;
-            baseHeight = clone.getBoundingClientRect().height;
+            const sourceBox = sourceSvg.viewBox?.baseVal;
+            const intrinsicWidth = sourceBox?.width || sourceSvg.getBoundingClientRect().width;
+            const intrinsicHeight = sourceBox?.height || sourceSvg.getBoundingClientRect().height;
+            const contentStyle = window.getComputedStyle(content);
+            const horizontalPadding = parseFloat(contentStyle.paddingLeft) + parseFloat(contentStyle.paddingRight);
+            const verticalPadding = parseFloat(contentStyle.paddingTop) + parseFloat(contentStyle.paddingBottom);
+            const availableWidth = Math.max(1, content.clientWidth - horizontalPadding);
+            const availableHeight = Math.max(1, content.clientHeight - verticalPadding);
+            const fitScale = Math.min(availableWidth / intrinsicWidth, availableHeight / intrinsicHeight);
+
+            baseWidth = intrinsicWidth * fitScale;
+            baseHeight = intrinsicHeight * fitScale;
+            wrapper.style.width = baseWidth + 'px';
+            wrapper.style.height = baseHeight + 'px';
         });
     };
 
