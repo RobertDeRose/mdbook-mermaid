@@ -3,7 +3,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 
 (() => {
-    const darkThemes = ['ayu', 'navy', 'coal'];
     const mermaidModalId = 'mermaid-diagram-modal';
     const expandIcon = `
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -17,30 +16,101 @@
         </svg>
     `;
 
-    const makeCursorSvg = (plus) => {
+    const clamp01 = (value) => Math.min(1, Math.max(0, value));
+
+    const hexToRgb = (hex) => {
+        const normalized = hex.length === 4
+            ? hex.replace(/^#([\da-fA-F])([\da-fA-F])([\da-fA-F])/, '#$1$1$2$2$3$3')
+            : hex;
+        const parts = /^#([\da-fA-F]{6})$/.exec(normalized);
+        if (!parts) return null;
+        const v = parts[1];
+        return [parseInt(v.slice(0, 2), 16), parseInt(v.slice(2, 4), 16), parseInt(v.slice(4, 6), 16)];
+    };
+
+    const parseColor = (value) => {
+        if (!value) return null;
+        const trim = value.trim();
+        const rgb = /^rgba?\(([^)]+)\)/.exec(trim);
+        if (rgb) {
+            const nums = rgb[1].split(',').map((n) => n.trim());
+            if (nums.length >= 3 && nums.every((n) => n !== '')) {
+                const channels = nums.slice(0, 3).map((channel) => {
+                    const normalized = parseFloat(channel);
+                    if (channel.includes('%')) {
+                        return clamp01(normalized / 100);
+                    }
+                    return clamp01(normalized / 255);
+                });
+                if (channels.every((n) => Number.isFinite(n))) {
+                    return channels;
+                }
+            }
+        }
+        return hexToRgb(trim)?.map((n) => n / 255) ?? null;
+    };
+
+    const isDarkColor = (value) => {
+        const rgb = parseColor(value);
+        if (!rgb) return null;
+        const [r, g, b] = rgb;
+        const luma = (0.2126 * r) + (0.7152 * g) + (0.0722 * b);
+        return luma < 0.5;
+    };
+
+    const hasClassThemeHint = (classes, token) => classes.some((value) => value === token);
+
+    const getThemeToneFromClass = () => {
+        const classes = Array.from(document.documentElement.classList || []);
+        if (classes.some((value) => /(^|-)dark/.test(value) || hasClassThemeHint(classes, 'navy') || hasClassThemeHint(classes, 'coal') || hasClassThemeHint(classes, 'ayu'))) return false;
+        if (classes.some((value) => /(^|-)light/.test(value) || hasClassThemeHint(classes, 'light') || hasClassThemeHint(classes, 'rust'))) return true;
+        return null;
+    };
+
+    const isLightTheme = () => {
+        const fromClass = getThemeToneFromClass();
+        if (fromClass !== null) return fromClass;
+
+        const rootStyle = getComputedStyle(document.documentElement);
+        const bgColor =
+            rootStyle.getPropertyValue('--bg').trim() ||
+            rootStyle.backgroundColor ||
+            getComputedStyle(document.body).backgroundColor;
+        const darkByColor = isDarkColor(bgColor);
+        if (darkByColor !== null) return !darkByColor;
+        return !window.matchMedia('(prefers-color-scheme: dark)').matches;
+    };
+
+    const getCursorColor = () => {
+        const themeRoot = getComputedStyle(document.documentElement);
+        return (
+            themeRoot.getPropertyValue('--fg').trim() ||
+            getComputedStyle(document.body).color
+        ).trim() || '#666';
+    };
+
+    const makeCursorSvg = (plus, color) => {
         const sign = plus
             ? `<line x1='20' y1='13' x2='20' y2='27' stroke-width='3'/><line x1='13' y1='20' x2='27' y2='20' stroke-width='3'/>`
             : `<line x1='13' y1='20' x2='27' y2='20' stroke-width='3'/>`;
-        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round'><circle cx='20' cy='20' r='13' stroke-width='3'/><line x1='30' y1='30' x2='42' y2='42' stroke-width='3'/>${sign}</svg>`;
-        return `url("data:image/svg+xml,${svg}") 20 20, auto`;
+        const encoded = encodeURIComponent(`
+            <svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='${color}' stroke-linecap='round' stroke-linejoin='round'><circle cx='20' cy='20' r='13' stroke-width='3'/><line x1='30' y1='30' x2='42' y2='42' stroke-width='3'/>${sign}</svg>`
+            .replace(/\n/g, '')
+        );
+        return `url("data:image/svg+xml,${encoded}") 20 20, auto`;
     };
-    const zoomInCursor = makeCursorSvg(true);
-    const zoomOutCursor = makeCursorSvg(false);
-    const resetCursor = `url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='%23888' stroke-linecap='round' stroke-linejoin='round'><g transform='translate(6 6) scale(1.5)'><path d='M3 12a9 9 0 1 0 3-6.7L3 8' stroke-width='2'/><path d='M3 3v5h5' stroke-width='2'/></g></svg>") 20 20, auto`;
 
-    // Determine whether the current theme is light or dark.
-    const classList = document.getElementsByTagName('html')[0].classList;
+    const zoomInCursor = () => makeCursorSvg(true, getCursorColor());
+    const zoomOutCursor = () => makeCursorSvg(false, getCursorColor());
+    const resetCursor = () => {
+        const encoded = encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='48' height='48' viewBox='0 0 48 48' fill='none' stroke='${getCursorColor()}' stroke-linecap='round' stroke-linejoin='round'><g transform='translate(6 6) scale(1.5)'><path d='M3 12a9 9 0 1 0 3-6.7L3 8' stroke-width='2'/><path d='M3 3v5h5' stroke-width='2'/></g></svg>`
+            .replace(/\n/g, '')
+        );
+        return `url("data:image/svg+xml,${encoded}") 20 20, auto`;
+    };
 
-    let lastThemeWasLight = true;
-    for (const cssClass of classList) {
-        if (darkThemes.includes(cssClass)) {
-            lastThemeWasLight = false;
-            break;
-        }
-    }
-
-    const theme = lastThemeWasLight ? 'default' : 'dark';
-    mermaid.initialize({ startOnLoad: true, theme });
+    let lastThemeWasLight = isLightTheme();
+    mermaid.initialize({ startOnLoad: true, theme: lastThemeWasLight ? 'default' : 'dark' });
 
     // --- Expand / modal functionality ---
 
@@ -114,7 +184,7 @@
         wrapper.appendChild(clone);
         content.appendChild(wrapper);
 
-        content.style.cursor = zoomInCursor;
+        content.style.cursor = zoomInCursor();
 
         title.textContent = diagramTitle(sourcePre);
 
@@ -163,6 +233,32 @@
                 <span><kbd>Esc</kbd>&nbsp; reset, then close</span>
             </aside>
         `;
+
+        const title = el.querySelector('.mermaid-modal__title');
+        const help = el.querySelector('.mermaid-modal__help');
+        const helpTitle = help?.querySelector('strong');
+        const helpRows = help ? Array.from(help.querySelectorAll('span')) : [];
+
+        if (title) {
+            title.style.setProperty('font-size', '30px', 'important');
+            title.style.setProperty('font-weight', '700', 'important');
+            title.style.setProperty('line-height', '1.2', 'important');
+        }
+        if (help) {
+            help.style.setProperty('font-size', '21px', 'important');
+            help.style.setProperty('line-height', '1.35', 'important');
+            help.style.setProperty('font-weight', '600', 'important');
+            help.style.setProperty('white-space', 'normal', 'important');
+        }
+        if (helpTitle) {
+            helpTitle.style.setProperty('font-size', '24px', 'important');
+            helpTitle.style.setProperty('font-weight', '700', 'important');
+            helpTitle.style.setProperty('margin-bottom', '0.15em', 'important');
+        }
+        for (const row of helpRows) {
+            row.style.setProperty('white-space', 'nowrap', 'important');
+            row.style.setProperty('font-size', '19px', 'important');
+        }
 
         el.addEventListener('click', (event) => {
             if (event.target.closest && event.target.closest('.mermaid-modal__close')) {
@@ -228,10 +324,10 @@
         }
         if (event.key === 'Shift') {
             const content = modal.querySelector('.mermaid-modal__content');
-            if (content) content.style.cursor = zoomOutCursor;
+            if (content) content.style.cursor = zoomOutCursor();
         } else if (event.key === 'Alt') {
             const content = modal.querySelector('.mermaid-modal__content');
-            if (content) content.style.cursor = resetCursor;
+            if (content) content.style.cursor = resetCursor();
         }
     });
 
@@ -239,10 +335,10 @@
         if (!modal || modal.hidden) return;
         if (event.key === 'Shift') {
             const content = modal.querySelector('.mermaid-modal__content');
-            if (content) content.style.cursor = zoomInCursor;
+            if (content) content.style.cursor = zoomInCursor();
         } else if (event.key === 'Alt') {
             const content = modal.querySelector('.mermaid-modal__content');
-            if (content) content.style.cursor = zoomInCursor;
+            if (content) content.style.cursor = zoomInCursor();
         }
     });
 
@@ -279,24 +375,21 @@
         observer.observe(document.body, { childList: true, subtree: true });
     }
 
-    // Reload page on theme change between light/dark to re-render mermaid diagrams.
-    const isLightTheme = (themeId) => {
-        if (themeId === 'default_theme') {
-            return !window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const syncTheme = () => {
+        const newIsLight = isLightTheme();
+        if (newIsLight !== lastThemeWasLight) {
+            window.location.reload();
         }
-        return !darkThemes.includes(themeId);
     };
 
     const themeList = document.getElementById('mdbook-theme-list');
     if (themeList) {
         for (const button of themeList.querySelectorAll('button.theme')) {
             button.addEventListener('click', () => {
-                const themeId = button.id.replace('mdbook-theme-', '');
-                const newIsLight = isLightTheme(themeId);
-                if (newIsLight !== lastThemeWasLight) {
-                    window.location.reload();
-                }
+                window.setTimeout(syncTheme, 0);
             });
         }
     }
+    const themeObserver = new MutationObserver(syncTheme);
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 })();
