@@ -4,6 +4,16 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to validate; empty means the triggering commit
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
 
 env:
   RUSTFLAGS: -Dwarnings
@@ -14,8 +24,35 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ inputs.tag != '' && format('refs/tags/{0}', inputs.tag) || github.sha }}
     - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
+
+    - name: Verify release version
+      if: inputs.tag != ''
+      env:
+        RELEASE_TAG: ${{ inputs.tag }}
+      run: |
+        python3 - <<'PY'
+        import os
+        import re
+        import tomllib
+        from pathlib import Path
+
+        tag = os.environ["RELEASE_TAG"]
+        if not re.fullmatch(r"v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", tag):
+            raise SystemExit("Expected a stable vMAJOR.MINOR.PATCH release tag")
+        version = tag[1:]
+        manifest = tomllib.loads(Path("Cargo.toml").read_text())
+        lock = tomllib.loads(Path("Cargo.lock").read_text())
+        package = next(p for p in lock["package"] if p["name"] == "mdbook-mermaid")
+        if manifest["package"]["version"] != version or package["version"] != version:
+            raise SystemExit("Release tag, Cargo.toml, and Cargo.lock versions must match")
+        PY
+
+    - name: Release tooling tests
+      run: python3 -m unittest discover -s scripts -p 'test_*.py'
 
     - name: tests
       run: cargo test --locked --all
@@ -37,10 +74,21 @@ jobs:
     name: Checking fmt and docs
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        ref: ${{ inputs.tag != '' && format('refs/tags/{0}', inputs.tag) || github.sha }}
     - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
       with:
         components: rustfmt, clippy
+
+    - name: Set up workflow linting
+      uses: jdx/mise-action@9149ea85001c7435d5a66bb127d6a1b6227cb0a5 # v5.0.0
+      with:
+        install: false
+        cache: false
+
+    - name: Validate workflows
+      run: mise exec --locked actionlint@1.7.12 shellcheck@0.11.0 -- actionlint
 
     - name: fmt
       run: cargo fmt --all -- --check

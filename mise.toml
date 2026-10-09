@@ -3,7 +3,10 @@ experimental = true
 env_shell_expand = true
 
 [tools]
-hk = { version = "1.41", arch = "aarch64" }
+cocogitto = "7.0.0"
+actionlint = "1.7.12"
+shellcheck = "0.11.0"
+hk = "1.41.0"
 pkl = "latest"
 rust = "stable"
 
@@ -12,3 +15,15 @@ HK_MISE = 1
 
 [hooks]
 postinstall = "command -v hk >/dev/null && hk install --mise || true"
+
+[tasks."release:preview"]
+description = "Preview the next release version without changing files or tags"
+run = "cog bump --auto --dry-run"
+
+[tasks."release:changelog"]
+description = "Preview changes since the latest fork release"
+run = 'cog changelog "$(git describe --tags --abbrev=0)..HEAD"'
+
+[tasks."workflows:check"]
+description = "Validate GitHub Actions workflows"
+run = "actionlint"
