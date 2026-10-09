@@ -55,10 +55,28 @@ fn main() {
     }
 }
 
+fn mdbook_versions_compatible(built_version: &str, running_version: &str) -> bool {
+    match (
+        semver::Version::parse(built_version),
+        semver::Version::parse(running_version),
+    ) {
+        (Ok(built), Ok(running)) => {
+            built == running
+                || (built.pre.is_empty()
+                    && running.pre.is_empty()
+                    && built.major == running.major
+                    && built.minor == running.minor
+                    // In the 0.0 series, even patch releases can be incompatible.
+                    && (built.major != 0 || built.minor != 0 || built.patch == running.patch))
+        }
+        _ => false,
+    }
+}
+
 fn handle_preprocessing() -> Result<(), Error> {
     let (ctx, book) = mdbook_preprocessor::parse_input(io::stdin())?;
 
-    if ctx.mdbook_version != mdbook_preprocessor::MDBOOK_VERSION {
+    if !mdbook_versions_compatible(mdbook_preprocessor::MDBOOK_VERSION, &ctx.mdbook_version) {
         eprintln!(
             "Warning: The mdbook-mermaid preprocessor was built against version \
              {} of mdbook, but we're being called from version {}",
@@ -268,4 +286,32 @@ fn insert_additional(doc: &mut Document, additional_type: &str, file: &str) {
         .as_array_mut()
         .unwrap()
         .push(file);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::mdbook_versions_compatible;
+
+    #[test]
+    fn accepts_compatible_patch_releases() {
+        for running in ["0.5.0", "0.5.2", "0.5.4", "0.5.99", "0.5.4+build.1"] {
+            assert!(mdbook_versions_compatible("0.5.4", running), "{}", running);
+        }
+    }
+
+    #[test]
+    fn rejects_incompatible_or_invalid_versions() {
+        for running in ["0.4.52", "0.6.0", "1.5.4", "0.5.4-beta.1", "0.5", "invalid"] {
+            assert!(!mdbook_versions_compatible("0.5.4", running), "{}", running);
+        }
+        assert!(!mdbook_versions_compatible("invalid", "0.5.4"));
+        assert!(!mdbook_versions_compatible("0.0.4", "0.0.5"));
+    }
+
+    #[test]
+    fn prereleases_require_an_exact_match() {
+        assert!(mdbook_versions_compatible("0.5.4-beta.1", "0.5.4-beta.1"));
+        assert!(!mdbook_versions_compatible("0.5.4-beta.1", "0.5.4-beta.2"));
+        assert!(!mdbook_versions_compatible("0.5.4-beta.1", "0.5.4"));
+    }
 }

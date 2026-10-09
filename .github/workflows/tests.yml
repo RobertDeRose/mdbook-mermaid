@@ -18,7 +18,20 @@ jobs:
     - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6 # v1.16.1
 
     - name: tests
-      run: cargo test --all
+      run: cargo test --locked --all
+
+    - name: Install mdBook 0.5.4
+      run: |
+        mkdir -p "$RUNNER_TEMP/mdbook"
+        curl --fail --location --retry 3 \
+          https://github.com/rust-lang/mdBook/releases/download/v0.5.4/mdbook-v0.5.4-x86_64-unknown-linux-gnu.tar.gz \
+          --output "$RUNNER_TEMP/mdbook.tar.gz"
+        echo "3f28de05dafca9d0f2eab99c662116b0e37b89b1d96a08f8f430b9eeae958cd7  $RUNNER_TEMP/mdbook.tar.gz" | sha256sum --check
+        tar -xzf "$RUNNER_TEMP/mdbook.tar.gz" -C "$RUNNER_TEMP/mdbook" mdbook
+        echo "$RUNNER_TEMP/mdbook" >> "$GITHUB_PATH"
+
+    - name: mdBook build smoke test
+      run: cargo test --locked --test it -- --ignored
 
   check_fmt_and_docs:
     name: Checking fmt and docs
@@ -33,7 +46,7 @@ jobs:
       run: cargo fmt --all -- --check
 
     - name: Clippy
-      run: cargo clippy --all
+      run: cargo clippy --locked --all
 
     - name: Docs
-      run: cargo doc --no-deps
+      run: cargo doc --locked --no-deps
