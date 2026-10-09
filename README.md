@@ -123,10 +123,19 @@ You can modify `mermaid-init.js` to configure Mermaid, see the [Mermaid document
 Finally, build your book:
 
 ```
-mdbook path/to/book
+mdbook build path/to/book
 ```
 
 ## Development
+
+Building against mdBook 0.5.4 requires Rust 1.88 or newer.
+
+Run the tests with `cargo test --locked --all`. With mdBook 0.5.4 on your `PATH`,
+also run the book-build smoke test:
+
+```
+cargo test --locked --test it -- --ignored
+```
 
 ### Update the bundled mermaid.js
 
