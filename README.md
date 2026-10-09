@@ -145,7 +145,46 @@ also run the book-build smoke test:
 cargo test --locked --test it -- --ignored
 ```
 
-### Update the bundled mermaid.js
+## Releases
+
+Releases use Cocogitto and mise:
+
+1. A push to `main` (or a manual run of `.github/workflows/release.yml`) runs the tests, mdBook 0.5.4 smoke test,
+   formatting, Clippy, documentation build, and workflow linting.
+2. Cocogitto checks Conventional Commits since the latest fork tag and calculates the next version:
+   `fix` bumps the patch, `feat` bumps the minor, and breaking changes bump the major.
+   Documentation, tooling, and other non-releasable changes alone do not create a release.
+3. The version hook updates `Cargo.toml` and `Cargo.lock`; Cocogitto updates `CHANGELOG.md` and creates a `v`-prefixed tag.
+   The release commit and tag are pushed together after testing the version-bumped package.
+4. The workflow calls `.github/workflows/deploy.yml` directly, rather than relying on a bot-created tag to trigger it.
+   It validates the tagged source and builds the existing six Linux, macOS, and Windows binaries.
+5. GitHub release archives include the executable, license, README, and changelog. A `SHA256SUMS` file is published
+   alongside them, and release notes come from the latest changelog entry. New releases stay draft until assets upload.
+
+This fork's version baseline is `v1.2.0`; it no longer reports upstream's `0.17.0` package version.
+Earlier fork entries and the original upstream changelog are preserved. This automation does not publish to crates.io or APT.
+
+Install the pinned release/lint tools and preview a release locally (the version preview requires a clean working tree):
+
+```sh
+mise install --locked cocogitto actionlint shellcheck
+mise run release:preview
+mise run release:changelog
+mise run workflows:check
+```
+
+To retry packaging an existing version after a failed build/upload, run the **Build and Release Binaries** workflow
+manually with its `tag` input, for example:
+
+```sh
+gh workflow run deploy.yml --ref main -f tag=v1.2.1
+```
+
+Pushing a tag alone no longer starts packaging. The tag, manifest, and lockfile versions must agree.
+GitHub repository rules must allow the release workflow's `GITHUB_TOKEN` to write contents and push release commits
+onto `main`; protected-branch rules may require an approved bot exemption or a separately configured GitHub App.
+
+## Update the bundled mermaid.js
 
 Find the latest version of `mermaid` on <https://github.com/mermaid-js/mermaid/releases>.
 Then run:
