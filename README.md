@@ -2,6 +2,19 @@
 
 A preprocessor for [mdbook][] to add [mermaid.js][] support.
 
+This is a fork of [mdbook-mermaid by Jan-Erik Rediger](https://github.com/badboy/mdbook-mermaid).
+
+## Fork additions
+
+- Full-viewport diagram expansion with interactive zoom, reset controls, and a floating help card.
+- Modal titles from figure captions or immediately preceding captions/headings, plus larger title and help text.
+- Theme-aware diagrams, modal styling, and zoom cursors.
+- Automatic installation of the modal stylesheet alongside the Mermaid JavaScript assets.
+- mdBook 0.5 patch-version compatibility checks, validated with mdBook 0.5.4 and a book-build smoke test.
+- Updated CI/release workflows and mise-backed Rust validation.
+
+## Diagram rendering
+
 [mdbook]: https://github.com/rust-lang-nursery/mdBook
 [mermaid.js]: https://mermaidjs.github.io/
 
@@ -29,9 +42,9 @@ full-viewport modal for better readability.
 
 The modal supports:
 
-- Closing with the X icon button, backdrop click, or Escape.
+- Closing with the X icon button or backdrop click.
 - Click-to-zoom inside the diagram.
-- Shift-click or Shift-hold to zoom out.
+- Shift-click to zoom out; holding Shift displays the zoom-out cursor.
 - Alt-click, or Option-click on macOS, to reset zoom.
 - Escape to reset zoom first, then close when already at the default zoom.
 
@@ -70,28 +83,21 @@ flowchart TD
 
 ### From source
 
-To install it from source:
+To install this fork from source (requires Rust 1.88 or newer):
 
-```
-cargo install mdbook-mermaid
-```
-
-This will build `mdbook-mermaid` from source.
-
-### Using `cargo-binstall`
-
-If you have [cargo-binstall](https://github.com/cargo-bins/cargo-binstall) already:
-
-```
-cargo binstall mdbook-mermaid
+```sh
+cargo install --git https://github.com/RobertDeRose/mdbook-mermaid --locked --force mdbook-mermaid
 ```
 
-This will download and install the pre-built binary for your system.
+This builds the fork and replaces any existing `mdbook-mermaid` executable.
+The commands `cargo install mdbook-mermaid` and `cargo binstall mdbook-mermaid` install the upstream package,
+not this fork's additions.
 
 ### Manually
 
-Binary releases are available on the [Releases page](https://github.com/badboy/mdbook-mermaid/releases).
-Download the relevant package for your system, unpack it, and move the `mdbook-mermaid` executable into `$HOME/.cargo/bin`:
+Check this fork's [Releases page](https://github.com/RobertDeRose/mdbook-mermaid/releases) for pre-built binaries.
+If a release is available for your system, download and unpack it, then move the `mdbook-mermaid` executable
+into `$HOME/.cargo/bin`.
 
 ## Configure your mdBook to use `mdbook-mermaid`
 
@@ -113,6 +119,8 @@ additional-css = ["mermaid-modal.css"]
 ```
 
 It will skip any unnecessary changes and detect if `mdbook-mermaid` was already configured.
+When upgrading from upstream or an earlier fork version, rerun this command to refresh the bundled assets
+and add `mermaid-modal.css` to your configuration.
 
 Additionally it copies the files `mermaid.min.js`, `mermaid-init.js`, and `mermaid-modal.css` into your book's directory.
 You find these files in the [`src/bin/assets`](src/bin/assets) directory.
@@ -158,8 +166,15 @@ or manually replace the file.
 
 ## License
 
-MPL. See [LICENSE](LICENSE).
-Copyright (c) 2018-2024 Jan-Erik Rediger <janerik@fnordig.de>
+This fork remains licensed under the Mozilla Public License 2.0. See [LICENSE](LICENSE).
 
-Mermaid is [MIT licensed](https://github.com/knsv/mermaid/blob/master/LICENSE).
-The bundled assets (`mermaid.min.js`) are MIT licensed.
+- Upstream work: Copyright (c) 2018-2024 Jan-Erik Rediger <janerik@fnordig.de>.
+- Robert DeRose's fork contributions: Copyright (c) 2026 Robert DeRose.
+- Other contributions remain copyright their respective holders.
+
+The upstream copyright notice applies to the original work, not to new contributions made by others in this fork.
+Those contributions remain owned by their respective copyright holders; contributing does not assign copyright
+to the original maintainer.
+
+Mermaid is [MIT licensed](https://github.com/mermaid-js/mermaid/blob/develop/LICENSE).
+The bundled `mermaid.min.js` retains its MIT license; `mermaid-init.js` and `mermaid-modal.css` are MPL-2.0 licensed.
